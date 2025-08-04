@@ -63,6 +63,6 @@ impl VecExtU8 for Vec<u8> {
         // Convert vector to array
         let bytes: [u8; 4] = [self[0], self[1], self[2], self[3]];
 
-        u32::from_ne_bytes(bytes)
+        u32::from_be_bytes(bytes)
     }
 }
