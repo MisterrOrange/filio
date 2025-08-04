@@ -1,7 +1,11 @@
 use std::io::{Bytes, BufReader};
 use std::fs::File;
+use thiserror::Error;
+
+use crate::image_converter::png::PngError;
 
 pub mod png;
+pub mod crc;
 
 
 pub struct RawImage {
@@ -16,6 +20,7 @@ enum ImageTypes {
 }
 
 pub trait FileConverter {
-    fn decode(it: Bytes<BufReader<File>>) -> anyhow::Result<Self>
+    type Error;
+    fn decode(&mut self, it: Bytes<BufReader<File>>) -> Result<(), Self::Error>
     where Self: Sized;
 }

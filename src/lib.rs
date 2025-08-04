@@ -2,9 +2,10 @@ use std::fs::File;
 use std::io::{Bytes, BufReader, Read};
 
 
-use crate::image_converter::FileConverter;
+use crate::image_converter::png::Png;
+use crate::image_converter::{FileConverter, png};
 
-mod image_converter;
+pub mod image_converter;
 mod vec_extension;
 
 
@@ -17,7 +18,8 @@ pub fn convert_file(file_path: &str) -> Result<(), anyhow::Error>{
     let iterator: Bytes<BufReader<File>> = BufReader::new(file).bytes();
     
     // Assume file is png
-    image_converter::png::Png::decode(iterator)?;
+    let mut png_file: Png = Png::new();
+    png_file.decode(iterator)?;
     Ok(())
 }
 
