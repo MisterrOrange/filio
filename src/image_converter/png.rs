@@ -26,6 +26,8 @@ pub enum PngError {
     },
     #[error("end of png reached (this error is for library maintainers and shouldn't be propagated out of the lib)")]
     PngEndReached,
+    #[error("invalid crc for data")]
+    InvalidCRC,
 }
 
 
@@ -77,9 +79,11 @@ impl Png {
         let chunk_name: &[u8] = chunk_name_vec.as_slice();
         let chunk_data = self.read_bytes(it, chunk_length as usize)?;
         // = Cyclic redundancy check = checksum to verify integrity of data 
-        let crc = self.read_bytes(it, 4);
+        let crc = self.read_bytes(it, 4)?;
 
-
+        if !super::crc::validate_crc_32(&chunk_data, crc) {
+            return Err(PngError::InvalidCRC)
+        }
 
         match chunk_name {
             // IHDR chunk

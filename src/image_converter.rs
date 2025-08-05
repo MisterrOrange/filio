@@ -2,10 +2,10 @@ use std::io::{Bytes, BufReader};
 use std::fs::File;
 use thiserror::Error;
 
-use crate::image_converter::png::PngError;
+use crate::algorithms::crc;
 
 pub mod png;
-pub mod crc;
+
 
 
 pub struct RawImage {

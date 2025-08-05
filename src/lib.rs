@@ -5,8 +5,9 @@ use std::io::{Bytes, BufReader, Read};
 use crate::image_converter::png::Png;
 use crate::image_converter::{FileConverter, png};
 
-pub mod image_converter;
+mod image_converter;
 mod vec_extension;
+mod algorithms;
 
 
 pub fn add(left: u64, right: u64) -> u64 {

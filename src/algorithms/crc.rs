@@ -2,6 +2,7 @@
 
 use crate::vec_extension::VecExtU8;
 
+/// Returns true if crc matches data
 pub fn validate_crc_32(chunk_data: &Vec<u8>, supplied_crc: Vec<u8>) -> bool {
     let mut bits: String = String::new();
     for byte in chunk_data {
