@@ -7,7 +7,7 @@ use crate::image_converter::{FileConverter, png};
 
 mod image_converter;
 mod vec_extension;
-mod algorithms;
+pub mod algorithms;
 
 
 pub fn add(left: u64, right: u64) -> u64 {
