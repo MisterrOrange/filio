@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::BinaryHeap, collections::HashMap};
+use std::{cmp::{Ordering}, collections::{BinaryHeap, HashMap}};
 
 // https://github.com/edvujic/LZ77-DEFLATE-Compression
 enum HuffmanNode {
@@ -24,8 +24,26 @@ impl HuffmanNode {
 
 impl Ord for HuffmanNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Reverses order
-        other.frequency().cmp(&self.frequency())
+        match self.frequency().cmp(&other.frequency()) {
+            Ordering::Equal => {
+                // Compare lexicographically by character if both are Data nodes
+                match (self, other) {
+                    (
+                        HuffmanNode::Data { character: c1, .. },
+                        HuffmanNode::Data { character: c2, .. },
+                    ) => c1.cmp(c2),
+
+                    // If one is internal and one is data
+                    (HuffmanNode::Data { .. }, _) => Ordering::Less,
+                    (_, HuffmanNode::Data { .. }) => Ordering::Greater,
+
+                    // Both internal nodes, treat them as equal
+                    _ => Ordering::Equal,
+                }
+            }
+            // Reverse to make BinaryHeap a min-heap
+            other_order => other_order.reverse(),
+        }
     }
 }
 
@@ -43,8 +61,25 @@ impl PartialEq for HuffmanNode {
 
 impl Eq for HuffmanNode {}
 
+/// Encodes the input data string using a canonical Huffmman tree.
+/// Canonical Huffman trees order every character on the same level on the tree lexicographically.
+/// Additionaly, if the tree branches and characters on the same level, the characters are further the left (and sorted lexicographically) 
+/// 
+/// Example:
+/// ```text
+///     Normal Tree               Canonical Tree
+///        /     \                   /     \
+///      /  \    'c'               'c'    /  \    
+///    'b'  'a'                     ↑   'a'  'b'
+///                                 ↑    ↑    ↑
+///                                 ↑   Sorted by alphabet
+///                     Character's further on left than branch
+/// ```
+pub fn canonically_encode_data(data: &str) -> String {
+    if data.len() == 0 {
+        return String::from("");
+    }
 
-pub fn generate_canonical_huffman_tree(data: &str) {
     let mut map: HashMap<char, u32> = HashMap::new();
     for character in data.chars() {
         // Increase frequency by 1
@@ -67,10 +102,11 @@ pub fn generate_canonical_huffman_tree(data: &str) {
 
     let codes = assign_huffman_codes(heap.peek().unwrap());
     println!("{:?}", codes);
+    encode_data(data, &codes)
 }
 
-fn assign_huffman_codes(root_node: &HuffmanNode) -> Vec<(char, String)> {
-    let mut huffman_codes: Vec<(char, String)> = Vec::new();
+fn assign_huffman_codes(root_node: &HuffmanNode) -> HashMap<char, String> {
+    let mut huffman_codes: HashMap<char, String> = HashMap::new();
 
     // Saves lowest number that's not already been taken in a previous level
     let mut lowest_available_number: usize = 0;
@@ -83,6 +119,7 @@ fn assign_huffman_codes(root_node: &HuffmanNode) -> Vec<(char, String)> {
         let mut next_level_nodes: Vec<&HuffmanNode> = Vec::new();
         // Saves characters from all "end-nodes" on current level
         let mut current_level_characters: Vec<char> = Vec::new();
+
 
         for node in &current_level_nodes {
             match node {
@@ -115,9 +152,14 @@ fn assign_huffman_codes(root_node: &HuffmanNode) -> Vec<(char, String)> {
                 }
             }
 
-            for (i, char) in current_level_characters.iter().enumerate() {
-                let binary_string = get_binary_string((i + lowest_available_number).try_into().unwrap(), current_level as usize);
-                huffman_codes.push((*char, binary_string));
+            for (character_index, char) in current_level_characters.iter().enumerate() {
+                // Handles edge case of only having the same character in string
+                if current_level == 0 {
+                    current_level += 1;
+                }
+
+                let binary_string = get_binary_string((character_index + lowest_available_number).try_into().unwrap(), current_level as usize);
+                huffman_codes.insert(*char, binary_string);
             }
         }
 
@@ -131,10 +173,53 @@ fn assign_huffman_codes(root_node: &HuffmanNode) -> Vec<(char, String)> {
 }
 
 fn get_binary_string(number: u32, amount_of_digits: usize) -> String {
+    if amount_of_digits > 32 {
+        panic!("'amount_of_digits' can't exceed 32, supplied: {}", amount_of_digits);
+    }
+
     let mut binary: String = String::new();
     for i in (0..32).rev() {
         binary += if ((number >> i) & 1) != 0 {"1"} else {"0"};
     }
     // Trim binary number
     binary[(binary.len() - amount_of_digits)..].to_string()
+}
+
+// Encodes a string of data using a Hashmap of Huffman codes
+fn encode_data(data: &str, huffman_codes: &HashMap<char, String>) -> String {
+    let mut encoded_data = String::new();
+    for character in data.chars() {
+        encoded_data += huffman_codes.get(&character).expect("Character to encode not found in Huffman tree");
+    }
+    encoded_data
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_binary_string() {
+        assert_eq!(get_binary_string(0, 1), "0");
+        assert_eq!(get_binary_string(0, 4), "0000");
+        assert_eq!(get_binary_string(0, 8), "00000000");
+        assert_eq!(get_binary_string(0, 16), "0000000000000000");
+        assert_eq!(get_binary_string(0, 32), "00000000000000000000000000000000");
+        assert_eq!(get_binary_string(u32::MAX, 32), "11111111111111111111111111111111");
+        assert_eq!(get_binary_string(u32::MAX, 16), "1111111111111111");
+        assert_eq!(get_binary_string(u32::MAX, 8), "11111111");
+        assert_eq!(get_binary_string(u32::MAX, 4), "1111");
+        assert_eq!(get_binary_string(u32::MAX, 1), "1");
+    }
+
+    #[test]
+    fn test_huffman_encoding() {
+        assert_eq!(canonically_encode_data("aaaa"), "0000");
+        assert_eq!(canonically_encode_data("abab"), "0101");
+        assert_eq!(canonically_encode_data("aaab"), "0001");
+        assert_eq!(canonically_encode_data(""), "");
+        assert_eq!(canonically_encode_data("aaaaaaaab"), "000000001");
+    }
 }
